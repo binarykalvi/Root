@@ -20,10 +20,10 @@ jobs:
       - name: Install Node Dependencies
         run: npm install
 
-      - name: Setup Python, yt-dlp & aria2
+      - name: Setup Python & yt-dlp
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg aria2
+          sudo apt-get install -y ffmpeg
           python3 -m pip install --upgrade --force-reinstall "yt-dlp[default]"
 
       - name: Create Download Directory
@@ -36,19 +36,18 @@ jobs:
         run: |
           echo "$YT_COOKIES_DATA" > cookies.txt
 
-      # Parallel download up to 4 files/fragments at a time with aria2c + extract thumbnails
+      # Execute yt-dlp using cookies, writing thumbnail and using 3 parallel connections
       - name: Y D DL
         run: |
           yt-dlp \
             --cookies cookies.txt \
             --js-runtimes node \
-            --downloader aria2c \
-            --downloader-args "aria2c:-j 4 -x 4 -s 4" \
             -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" \
             --merge-output-format mp4 \
             --write-info-json \
             --write-thumbnail \
             --convert-thumbnails jpg \
+            -N 3 \
             -o "downloads/%(playlist_index|0)s_%(title)s.%(ext)s" \
             "${{ github.event.client_payload.youtube_url }}"
 
