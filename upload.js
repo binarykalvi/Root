@@ -29,7 +29,8 @@ function getDownloadedVideos(dir) {
 
       // Look for matching .info.json created by yt-dlp
       const jsonPath = path.join(dir, `${nameWithoutExt}.info.json`);
-      // Look for matching thumbnail file (.jpg, .jpeg, .png)
+      
+      // Look for matching thumbnail file (.jpg, .jpeg, .png, .webp)
       let thumbPath = null;
       for (const thumbExt of ['.jpg', '.jpeg', '.png', '.webp']) {
         const potentialPath = path.join(dir, `${nameWithoutExt}${thumbExt}`);
@@ -99,14 +100,23 @@ async function uploadSingleVideo(video, index, total) {
     console.log(`[Y] Success ID: ${videoId}`);
     console.log(`[Y] URL: https://youtu.be/${videoId}`);
 
-    // Upload thumbnail if present
+    // Dynamic MIME type determination for thumbnail upload
     if (video.thumbPath && fs.existsSync(video.thumbPath)) {
       try {
         console.log(`[THUMB] Uploading thumbnail: ${path.basename(video.thumbPath)}`);
+
+        const thumbExt = path.extname(video.thumbPath).toLowerCase();
+        let mimeType = 'image/jpeg';
+        if (thumbExt === '.png') {
+          mimeType = 'image/png';
+        } else if (thumbExt === '.webp') {
+          mimeType = 'image/webp';
+        }
+
         await youtube.thumbnails.set({
           videoId: videoId,
           media: {
-            mimeType: 'image/jpeg',
+            mimeType: mimeType,
             body: fs.createReadStream(video.thumbPath),
           },
         });
