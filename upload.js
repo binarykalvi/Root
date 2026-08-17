@@ -27,10 +27,9 @@ function getDownloadedVideos(dir) {
       const fullPath = path.join(dir, file);
       const nameWithoutExt = path.basename(file, ext);
 
-      // Match info json created by yt-dlp
+      // Look for matching .info.json created by yt-dlp
       const jsonPath = path.join(dir, `${nameWithoutExt}.info.json`);
-
-      // Match original thumbnail (.jpg, .jpeg, .png, .webp)
+      // Look for matching thumbnail file (.jpg, .jpeg, .png)
       let thumbPath = null;
       for (const thumbExt of ['.jpg', '.jpeg', '.png', '.webp']) {
         const potentialPath = path.join(dir, `${nameWithoutExt}${thumbExt}`);
@@ -63,11 +62,12 @@ function getDownloadedVideos(dir) {
     }
   }
 
-  // Preserve ordering by file creation time
+  // Sort by creation time to preserve playlist ordering
   return videoFiles.sort((a, b) => a.ctime - b.ctime);
 }
 
 async function uploadSingleVideo(video, index, total) {
+  // Use custom title/description if provided, otherwise fallback to original downloaded metadata
   let finalTitle = customTitle.trim() !== '' ? customTitle : video.title;
   let finalDesc = customDescription.trim() !== '' ? customDescription : video.description;
 
@@ -99,7 +99,7 @@ async function uploadSingleVideo(video, index, total) {
     console.log(`[Y] Success ID: ${videoId}`);
     console.log(`[Y] URL: https://youtu.be/${videoId}`);
 
-    // Upload thumbnail if it exists
+    // Upload thumbnail if present
     if (video.thumbPath && fs.existsSync(video.thumbPath)) {
       try {
         console.log(`[THUMB] Uploading thumbnail: ${path.basename(video.thumbPath)}`);
@@ -116,7 +116,7 @@ async function uploadSingleVideo(video, index, total) {
       }
     }
 
-    // Clean up local files immediately
+    // Cleanup downloaded video, metadata, and thumbnail
     fs.unlinkSync(video.filePath);
     if (video.jsonPath && fs.existsSync(video.jsonPath)) {
       fs.unlinkSync(video.jsonPath);
@@ -132,25 +132,6 @@ async function uploadSingleVideo(video, index, total) {
   }
 }
 
-// Pool runner for parallel task execution
-async function asyncPool(poolLimit, array, iteratorFn) {
-  const ret = [];
-  const executing = [];
-  for (const item of array) {
-    const p = Promise.resolve().then(() => iteratorFn(item, array.indexOf(item), array.length));
-    ret.push(p);
-
-    if (poolLimit <= array.length) {
-      const e = p.then(() => executing.splice(executing.indexOf(e), 1));
-      executing.push(e);
-      if (executing.length >= poolLimit) {
-        await Promise.race(executing);
-      }
-    }
-  }
-  return Promise.all(ret);
-}
-
 async function main() {
   const downloadsDir = path.join(process.cwd(), 'downloads');
   const targetDir = fs.existsSync(downloadsDir) ? downloadsDir : process.cwd();
@@ -162,10 +143,11 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`[Y2Y] ${videos.length} video(s) ready for upload. Processing up to 4 concurrently...`);
+  console.log(`[Y2Y] ${videos.length} video(s) ready for upload`);
 
-  // Run up to 4 uploads in parallel
-  await asyncPool(4, videos, uploadSingleVideo);
+  for (let i = 0; i < videos.length; i++) {
+    await uploadSingleVideo(videos[i], i, videos.length);
+  }
 
   console.log('[Y2Y] Done.');
 }
