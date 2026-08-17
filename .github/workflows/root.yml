@@ -24,7 +24,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
-          python3 -m pip install --upgrade --force-reinstall "yt-dlp[default]"
+          python3 -m pip install --upgrade --force-reinstall "yt-dlp[default]" Pillow
 
       - name: Create Download Directory
         run: mkdir -p downloads
